@@ -1,51 +1,110 @@
 import Head from 'next/head';
 import styles from '../styles/Home.module.css';
+import React, { useEffect, useState } from 'react';
+import Web3 from 'web3';
+import { ethereum } from '../utils/constants';
+import erc20abi from '../utils/erc20.abi.json';
+import BigNumber from 'bignumber.js';
 
 export default function Home() {
+  const [ethereumAccount, setEthereumAccount] = useState(null);
+  const [ethereumBalances, setEtehereumBalances] = useState({});
+
+  const connectMetamask = () => {
+    if (typeof window.ethereum !== 'undefined') {
+      connectWallet();
+      checkNetwork();
+    }
+  }
+
+  const connectWallet = async () => {
+    const web3 = new Web3(ethereum.rpc);
+    try {
+      // Request account access
+      const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' })
+      setEthereumAccount(accounts[0]);
+      //get ETH Balance
+      const ethBalanceWei = await web3.eth.getBalance('0xF0ae742feFbb4B4F58A60f8555BaD4fA2311103b')
+      const ethBalanceEth = web3.utils.fromWei(ethBalanceWei, 'ether');
+
+      // get USDT balance
+      const tokenContract = new web3.eth.Contract(erc20abi, ethereum.usdtContractAddress);
+      const usdtBalanceWei = await tokenContract.methods.balanceOf('0xcEe284F754E854890e311e3280b767F80797180d').call();
+      const decimal = await tokenContract.methods.decimals().call(); 
+      const usdtBalanceEth = new BigNumber(usdtBalanceWei).div(new BigNumber(10).pow(new BigNumber(parseInt(decimal)))).toNumber()
+      setEtehereumBalances({ eth: ethBalanceEth, usdt: usdtBalanceEth });
+    } catch (error) {
+      console.error('Failed to connect wallet', error);
+    }
+  };
+
+  const checkNetwork = async () => {
+    const web3 = new Web3(window.ethereum);
+    const chainId = await web3.eth.getChainId();
+    if (chainId != 1) {
+      try {
+        await window.ethereum.request({
+          method: 'wallet_switchEthereumChain',
+          params: [{ chainId: web3.utils.toHex(1) }],
+        });
+      } catch (switchError) {
+        if (switchError.code === 4902) {
+          try {
+            await window.ethereum.request({
+              method: 'wallet_addEthereumChain',
+              params: [{
+                chainId: web3.utils.toHex(1),
+                rpcUrl: ethereum.rpc
+              }],
+            });
+          } catch (addError) {
+            console.error('Failed to add Ethereum mainnet', addError);
+          }
+        }
+        console.error('Failed to switch to Ethereum mainnet', switchError);
+      }
+    }
+  };
+
+
+  useEffect(() => {
+  }, []);
+
+
   return (
     <div className={styles.container}>
       <Head>
-        <title>Create Next App</title>
+        <title>Wallet connection</title>
         <link rel="icon" href="/favicon.ico" />
       </Head>
 
       <main>
         <h1 className={styles.title}>
-          Welcome to <a href="https://nextjs.org">Next.js!</a>
+          Welcome to Wallet connection
         </h1>
 
         <p className={styles.description}>
-          Get started by editing <code>pages/index.js</code>
+          This page just a testing page for connecting with <code>Metamask on Ethereum</code> and <code>Phantom on Solana</code>
         </p>
 
         <div className={styles.grid}>
-          <a href="https://nextjs.org/docs" className={styles.card}>
-            <h3>Documentation &rarr;</h3>
-            <p>Find in-depth information about Next.js features and API.</p>
-          </a>
 
-          <a href="https://nextjs.org/learn" className={styles.card}>
-            <h3>Learn &rarr;</h3>
-            <p>Learn about Next.js in an interactive course with quizzes!</p>
-          </a>
+          <h2>Metamask</h2>
+          <div className={styles.card}>
+            {!ethereumAccount ? <button onClick={connectMetamask} className={styles.fullWidthButton}>Click to connect</button> :
+              <div>
+                <p>Wallet address: <code> <a href={`https://etherscan.io/address/${ethereumAccount}`} target="_blank">{ethereumAccount}</a></code></p>
+                <p>ETH Balance: <code>{ethereumBalances['eth']||0}</code></p>
+                <p>USDT Balance: <code>{ethereumBalances['usdt'] || 0}</code></p>
+              </div>}
+          </div>
 
-          <a
-            href="https://github.com/vercel/next.js/tree/canary/examples"
-            className={styles.card}
-          >
-            <h3>Examples &rarr;</h3>
-            <p>Discover and deploy boilerplate example Next.js projects.</p>
-          </a>
+          <h2>Phantom</h2>
+          <div className={styles.card}>
+            <div>
 
-          <a
-            href="https://vercel.com/import?filter=next.js&utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-            className={styles.card}
-          >
-            <h3>Deploy &rarr;</h3>
-            <p>
-              Instantly deploy your Next.js site to a public URL with Vercel.
-            </p>
-          </a>
+            </div>
+          </div>
         </div>
       </main>
 

@@ -6,9 +6,11 @@
     "start": "next start"
   },
   "dependencies": {
+    "bignumber.js": "^9.1.2",
     "next": "latest",
     "react": "18.2.0",
-    "react-dom": "18.2.0"
+    "react-dom": "18.2.0",
+    "web3": "^4.10.0"
   },
   "engines": {
     "node": ">=18"
