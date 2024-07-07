@@ -4,11 +4,17 @@ import React, { useEffect, useState } from 'react';
 import Web3 from 'web3';
 import { ethereum } from '../utils/constants';
 import erc20abi from '../utils/erc20.abi.json';
-import BigNumber from 'bignumber.js';
+import BigNumber from 'bignumber.js'; 
+import { Connection, PublicKey, clusterApiUrl } from '@solana/web3.js';
+
 
 export default function Home() {
   const [ethereumAccount, setEthereumAccount] = useState(null);
   const [ethereumBalances, setEtehereumBalances] = useState({});
+
+
+  const [solanaAccount, setSolanaAccount] = useState(null);
+  const [solanaBalances, setSolanaBalances] = useState({});
 
   const connectMetamask = () => {
     if (typeof window.ethereum !== 'undefined') {
@@ -24,12 +30,12 @@ export default function Home() {
       const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' })
       setEthereumAccount(accounts[0]);
       //get ETH Balance
-      const ethBalanceWei = await web3.eth.getBalance('0xF0ae742feFbb4B4F58A60f8555BaD4fA2311103b')
+      const ethBalanceWei = await web3.eth.getBalance(accounts[0])
       const ethBalanceEth = web3.utils.fromWei(ethBalanceWei, 'ether');
 
       // get USDT balance
       const tokenContract = new web3.eth.Contract(erc20abi, ethereum.usdtContractAddress);
-      const usdtBalanceWei = await tokenContract.methods.balanceOf('0xcEe284F754E854890e311e3280b767F80797180d').call();
+      const usdtBalanceWei = await tokenContract.methods.balanceOf(accounts[0]).call();
       const decimal = await tokenContract.methods.decimals().call(); 
       const usdtBalanceEth = new BigNumber(usdtBalanceWei).div(new BigNumber(10).pow(new BigNumber(parseInt(decimal)))).toNumber()
       setEtehereumBalances({ eth: ethBalanceEth, usdt: usdtBalanceEth });
@@ -64,6 +70,25 @@ export default function Home() {
         console.error('Failed to switch to Ethereum mainnet', switchError);
       }
     }
+  };
+
+  const connectPhantomWallet = async () => {
+    const { solana } = window;
+    if (solana) {
+      const response = await solana.connect();
+      const address = response.publicKey.toString()
+      setSolanaAccount(address);
+      const solBalance = await fetchSolBalance(address)
+      console.log("solBalance", solBalance)
+      setSolanaBalances({sol:solBalance})
+    }
+  };
+
+  const fetchSolBalance = async (address) => {
+    const connection = new Connection('https://solana-mainnet.g.alchemy.com/v2/45uB_ia-fH1niZNdvv4G1oBy4ecT8S8b', 'confirmed');
+    const publicKey = new PublicKey(address);
+    const balance = await connection.getBalance(publicKey);
+    return balance / 1e9 // Convert balance from lamports to SOL
   };
 
 
@@ -101,9 +126,11 @@ export default function Home() {
 
           <h2>Phantom</h2>
           <div className={styles.card}>
-            <div>
-
-            </div>
+            {!solanaAccount ? <button onClick={connectPhantomWallet} className={styles.fullWidthButton}>Click to connect</button> :
+              <div>
+                <p>Wallet address: <code> <a href={`https://etherscan.io/address/${ethereumAccount}`} target="_blank">{solanaAccount}</a></code></p>
+                <p>SOL Balance: <code>{solanaBalances['sol'] || 0}</code></p>
+              </div>}
           </div>
         </div>
       </main>
